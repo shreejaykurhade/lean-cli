@@ -30,7 +30,7 @@ def _profile_permission_error(exception: PermissionError) -> ClickException:
     return ClickException(
         f"Unable to update {path}. "
         "Please close any editor or terminal using that profile, or update the profile manually. "
-        "If Lean autocomplete is loaded in this PowerShell session, run `lean autocomplete off --shell powershell` again "
+        "If Lean autocomplete is loaded in this PowerShell session, run `lean autocomplete off` again "
         "after reloading the updated script."
     )
 
@@ -96,6 +96,6 @@ def off(shell: Optional[str], current_session: bool) -> None:
     if removed:
         echo(f"Disabled shell autocomplete in {profile_path}")
         echo("Open a new terminal session for the change to take effect.")
-        echo("To disable it in this PowerShell session, run `lean autocomplete off --shell powershell` again after reloading the updated script.")
+        echo("To disable it in this PowerShell session, run `lean autocomplete off` again after reloading the updated script.")
     else:
         echo(f"Shell autocomplete was not enabled in {profile_path}")

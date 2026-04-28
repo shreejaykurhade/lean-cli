@@ -116,6 +116,19 @@ def test_autocomplete_on_writes_powershell_profile() -> None:
         assert "Register-ArgumentCompleter -Native -CommandName lean" in content
 
 
+def test_autocomplete_on_auto_detects_powershell_profile() -> None:
+    with TemporaryDirectory() as directory, \
+            patch.object(Path, "home", return_value=Path(directory)), \
+            patch("lean.components.util.click_shell_autocomplete.system", return_value="Windows"):
+        result = CliRunner().invoke(lean, ["autocomplete", "on"])
+
+        assert result.exit_code == 0
+
+        profile_path = Path(directory) / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
+        assert profile_path.exists()
+        assert "# >>> lean autocomplete >>>" in profile_path.read_text(encoding="utf-8")
+
+
 def test_hidden_completion_alias_off_removes_legacy_powershell_profile_block() -> None:
     with TemporaryDirectory() as directory, patch.object(Path, "home", return_value=Path(directory)):
         profile_path = Path(directory) / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
@@ -133,7 +146,7 @@ def test_hidden_completion_alias_off_removes_legacy_powershell_profile_block() -
         assert "# >>> lean completion >>>" not in content
         assert "# before" in content
         assert "# after" in content
-        assert "lean autocomplete off --shell powershell" in result.output
+        assert "lean autocomplete off" in result.output
 
 
 def test_autocomplete_off_removes_powershell_profile_block() -> None:
@@ -149,7 +162,25 @@ def test_autocomplete_off_removes_powershell_profile_block() -> None:
 
         assert result.exit_code == 0
         assert "# >>> lean autocomplete >>>" not in profile_path.read_text(encoding="utf-8")
-        assert "lean autocomplete off --shell powershell" in result.output
+        assert "lean autocomplete off" in result.output
+
+
+def test_autocomplete_off_auto_detects_powershell_profile() -> None:
+    with TemporaryDirectory() as directory, \
+            patch.object(Path, "home", return_value=Path(directory)), \
+            patch("lean.components.util.click_shell_autocomplete.system", return_value="Windows"):
+        profile_path = Path(directory) / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
+        profile_path.parent.mkdir(parents=True, exist_ok=True)
+        profile_path.write_text(
+            "# before\n# >>> lean autocomplete >>>\nlean block\n# <<< lean autocomplete <<<\n# after\n",
+            encoding="utf-8"
+        )
+
+        result = CliRunner().invoke(lean, ["autocomplete", "off"])
+
+        assert result.exit_code == 0
+        assert "# >>> lean autocomplete >>>" not in profile_path.read_text(encoding="utf-8")
+        assert "lean autocomplete off" in result.output
 
 
 def test_autocomplete_off_current_session_prints_powershell_cleanup_script() -> None:
@@ -169,4 +200,4 @@ def test_autocomplete_off_shows_clear_error_when_profile_cannot_be_updated() -> 
 
     assert result.exit_code != 0
     assert "Unable to update profile.ps1" in result.output
-    assert "lean autocomplete off --shell powershell" in result.output
+    assert "lean autocomplete off" in result.output
