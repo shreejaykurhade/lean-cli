@@ -114,3 +114,25 @@ def test_aliased_command_group_fails_when_prefix_is_ambiguous() -> None:
 
     assert result.exit_code != 0
     assert "Too many matches: cloud, config" in result.output
+
+
+def test_aliased_command_group_ignores_hidden_commands_for_prefix_matching() -> None:
+    @click.group(cls=AliasedCommandGroup)
+    def group() -> None:
+        pass
+
+    @group.command(hidden=True)
+    def completion() -> None:
+        click.echo("completion")
+
+    @group.command()
+    def cloud() -> None:
+        click.echo("cloud")
+
+    prefix_result = CliRunner().invoke(group, ["c"])
+    exact_result = CliRunner().invoke(group, ["completion"])
+
+    assert prefix_result.exit_code == 0
+    assert prefix_result.output == "cloud\n"
+    assert exact_result.exit_code == 0
+    assert exact_result.output == "completion\n"

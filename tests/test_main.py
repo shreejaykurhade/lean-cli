@@ -57,4 +57,4 @@ def test_lean_reports_ambiguous_prefixes() -> None:
     result = CliRunner().invoke(lean, ["c"])
 
     assert result.exit_code != 0
-    assert "Too many matches: cloud, completion, config, create-project" in result.output
+    assert "Too many matches: cloud, config, create-project" in result.output

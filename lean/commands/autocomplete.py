@@ -30,73 +30,72 @@ def _profile_permission_error(exception: PermissionError) -> ClickException:
     return ClickException(
         f"Unable to update {path}. "
         "Please close any editor or terminal using that profile, or update the profile manually. "
-        "For the current PowerShell session, run "
-        "`lean completion off --shell powershell --current-session | Out-String | Invoke-Expression`."
+        "If Lean autocomplete is loaded in this PowerShell session, run `lean autocomplete off --shell powershell` again "
+        "after reloading the updated script."
     )
 
 
 @group(cls=AliasedCommandGroup, invoke_without_command=True)
 @SHELL_OPTION
 @pass_context
-def completion(ctx: Context, shell: Optional[str]) -> None:
-    """Print the native shell completion script for your shell.
+def autocomplete(ctx: Context, shell: Optional[str]) -> None:
+    """Print the native shell autocomplete script for your shell.
 
     \b
     PowerShell (current session):
-        lean completion --shell powershell | Out-String | Invoke-Expression
+        lean autocomplete --shell powershell | Out-String | Invoke-Expression
 
     \b
     Bash or Zsh (current session):
-        eval "$(lean completion --shell bash)"
+        eval "$(lean autocomplete --shell bash)"
 
     \b
     Fish (current session):
-        lean completion --shell fish | source
+        lean autocomplete --shell fish | source
     """
     if ctx.invoked_subcommand is None:
-        from lean.components.util.click_shell_completion import get_completion_script
-        echo(get_completion_script(shell))
+        from lean.components.util.click_shell_autocomplete import get_autocomplete_script
+        echo(get_autocomplete_script(shell))
 
 
-@completion.command(name="show", help="Print the native shell completion script for your shell")
+@autocomplete.command(name="show", help="Print the native shell autocomplete script for your shell")
 @SHELL_OPTION
 def show(shell: Optional[str]) -> None:
-    from lean.components.util.click_shell_completion import get_completion_script
-    echo(get_completion_script(shell))
+    from lean.components.util.click_shell_autocomplete import get_autocomplete_script
+    echo(get_autocomplete_script(shell))
 
 
-@completion.command(name="on", help="Enable shell completion in your shell profile")
+@autocomplete.command(name="on", help="Enable shell autocomplete in your shell profile")
 @SHELL_OPTION
 def on(shell: Optional[str]) -> None:
-    from lean.components.util.click_shell_completion import install_completion
+    from lean.components.util.click_shell_autocomplete import install_autocomplete
     try:
-        profile_path = install_completion(shell)
+        profile_path = install_autocomplete(shell)
     except PermissionError as exception:
         raise _profile_permission_error(exception)
 
-    echo(f"Enabled shell completion in {profile_path}")
+    echo(f"Enabled shell autocomplete in {profile_path}")
     echo("Open a new terminal session for the change to take effect.")
 
 
-@completion.command(name="off", help="Disable shell completion in your shell profile")
-@option("--current-session", is_flag=True, help="Print a script that disables completion in the current shell session.")
+@autocomplete.command(name="off", help="Disable shell autocomplete in your shell profile")
+@option("--current-session", is_flag=True, help="Print a script that disables autocomplete in the current shell session.")
 @SHELL_OPTION
 def off(shell: Optional[str], current_session: bool) -> None:
-    from lean.components.util.click_shell_completion import get_completion_cleanup_script, uninstall_completion
+    from lean.components.util.click_shell_autocomplete import get_autocomplete_cleanup_script, uninstall_autocomplete
 
     if current_session:
-        echo(get_completion_cleanup_script(shell))
+        echo(get_autocomplete_cleanup_script(shell))
         return
 
     try:
-        profile_path, removed = uninstall_completion(shell)
+        profile_path, removed = uninstall_autocomplete(shell)
     except PermissionError as exception:
         raise _profile_permission_error(exception)
 
     if removed:
-        echo(f"Disabled shell completion in {profile_path}")
+        echo(f"Disabled shell autocomplete in {profile_path}")
         echo("Open a new terminal session for the change to take effect.")
-        echo("To disable it in this session, run:")
-        echo("lean completion off --shell powershell --current-session | Out-String | Invoke-Expression")
+        echo("To disable it in this PowerShell session, run `lean autocomplete off --shell powershell` again after reloading the updated script.")
     else:
-        echo(f"Shell completion was not enabled in {profile_path}")
+        echo(f"Shell autocomplete was not enabled in {profile_path}")

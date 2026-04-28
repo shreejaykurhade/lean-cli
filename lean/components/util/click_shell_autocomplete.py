@@ -53,11 +53,51 @@ Register-ArgumentCompleter -Native -CommandName %(prog_name)s -ScriptBlock {
 try {
     Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete -ErrorAction SilentlyContinue
 } catch {}
+
+function __LeanCliExecutable {
+    $command = Get-Command %(prog_name)s -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($command) {
+        return $command.Source
+    }
+
+    return "%(prog_name)s"
+}
+
+function lean-autocomplete-off {
+    Register-ArgumentCompleter -Native -CommandName lean -ScriptBlock { @() }
+
+    try {
+        Set-PSReadLineOption -PredictionSource None -ErrorAction SilentlyContinue
+    } catch {}
+}
+
+function lean-autocomplete-on {
+    $lean = __LeanCliExecutable
+    & $lean autocomplete --shell powershell | Out-String | Invoke-Expression
+}
+
+function lean {
+    $lean = __LeanCliExecutable
+
+    if ($args.Count -ge 2 -and ($args[0] -eq "completion" -or $args[0] -eq "autocomplete") -and $args[1] -eq "off") {
+        & $lean @args
+        lean-autocomplete-off
+        return
+    }
+
+    if ($args.Count -ge 2 -and ($args[0] -eq "completion" -or $args[0] -eq "autocomplete") -and $args[1] -eq "on") {
+        & $lean @args
+        lean-autocomplete-on
+        return
+    }
+
+    & $lean @args
+}
 """
 
 
 class PowerShellComplete(ShellComplete):
-    """Shell completion for PowerShell."""
+    """Shell autocomplete for PowerShell."""
 
     name = "powershell"
     source_template = _SOURCE_POWERSHELL
@@ -80,7 +120,7 @@ class PowerShellComplete(ShellComplete):
         }, separators=(",", ":"))
 
 
-def register_shell_completion() -> None:
+def register_shell_autocomplete() -> None:
     if get_completion_class(PowerShellComplete.name) is None:
         add_completion_class(PowerShellComplete)
 
@@ -102,8 +142,8 @@ def detect_shell() -> str:
     return "bash"
 
 
-def get_completion_script(shell: Optional[str], prog_name: str = "lean") -> str:
-    register_shell_completion()
+def get_autocomplete_script(shell: Optional[str], prog_name: str = "lean") -> str:
+    register_shell_autocomplete()
 
     shell_name = (shell or detect_shell()).lower()
     complete_var = f"_{prog_name.replace('-', '_').replace('.', '_')}_COMPLETE".upper()
@@ -116,7 +156,7 @@ def get_completion_script(shell: Optional[str], prog_name: str = "lean") -> str:
     return completion_class(None, {}, prog_name, complete_var).source()
 
 
-def get_completion_cleanup_script(shell: Optional[str], prog_name: str = "lean") -> str:
+def get_autocomplete_cleanup_script(shell: Optional[str], prog_name: str = "lean") -> str:
     shell_name = (shell or detect_shell()).lower()
 
     if shell_name == "powershell":
@@ -126,6 +166,10 @@ Register-ArgumentCompleter -Native -CommandName {prog_name} -ScriptBlock {{ @() 
 try {{
     Set-PSReadLineOption -PredictionSource None -ErrorAction SilentlyContinue
 }} catch {{}}
+
+function lean-autocomplete-on {{
+    & {prog_name} autocomplete --shell powershell | Out-String | Invoke-Expression
+}}
 """.strip()
 
     return ""
@@ -149,11 +193,11 @@ def get_profile_path(shell: Optional[str]) -> Path:
     return Path.home() / ".bashrc"
 
 
-def install_completion(shell: Optional[str], prog_name: str = "lean") -> Path:
+def install_autocomplete(shell: Optional[str], prog_name: str = "lean") -> Path:
     profile_path = get_profile_path(shell)
-    marker_start = "# >>> lean completion >>>"
-    marker_end = "# <<< lean completion <<<"
-    script = get_completion_script(shell, prog_name).strip()
+    marker_start = "# >>> lean autocomplete >>>"
+    marker_end = "# <<< lean autocomplete <<<"
+    script = get_autocomplete_script(shell, prog_name).strip()
 
     content = profile_path.read_text(encoding="utf-8") if profile_path.exists() else ""
     if marker_start in content:
@@ -168,21 +212,30 @@ def install_completion(shell: Optional[str], prog_name: str = "lean") -> Path:
     return profile_path
 
 
-def uninstall_completion(shell: Optional[str]) -> tuple[Path, bool]:
+def uninstall_autocomplete(shell: Optional[str]) -> tuple[Path, bool]:
     profile_path = get_profile_path(shell)
-    marker_start = "# >>> lean completion >>>"
-    marker_end = "# <<< lean completion <<<"
 
     if not profile_path.exists():
         return profile_path, False
 
     content = profile_path.read_text(encoding="utf-8")
-    start_index = content.find(marker_start)
-    if start_index == -1:
-        return profile_path, False
+    markers = [
+        ("# >>> lean autocomplete >>>", "# <<< lean autocomplete <<<"),
+        ("# >>> lean completion >>>", "# <<< lean completion <<<")
+    ]
 
-    end_index = content.find(marker_end, start_index)
-    if end_index == -1:
+    start_index = -1
+    end_index = -1
+    for marker_start, marker_end in markers:
+        start_index = content.find(marker_start)
+        if start_index == -1:
+            continue
+
+        end_index = content.find(marker_end, start_index)
+        if end_index != -1:
+            break
+
+    if start_index == -1 or end_index == -1:
         return profile_path, False
 
     end_index += len(marker_end)

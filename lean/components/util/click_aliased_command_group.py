@@ -11,18 +11,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from click import Group
+from typing import Any, Callable, Optional, Union, overload
+
+from click import Command, Context, Group
+
+
+CommandCallback = Callable[..., Any]
+CommandDecorator = Callable[[CommandCallback], Command]
 
 
 class AliasedCommandGroup(Group):
-    """A click.Group wrapper that implements command aliasing and auto-completion/prefix matching."""
+    """A click.Group wrapper that implements command aliasing and autocomplete prefix matching."""
 
-    def get_command(self, ctx, cmd_name):
+    def get_command(self, ctx: Context, cmd_name: str) -> Optional[Command]:
         rv = super().get_command(ctx, cmd_name)
         if rv is not None:
             return rv
 
-        matches = [x for x in self.list_commands(ctx) if x.startswith(cmd_name)]
+        matches = []
+        for name in self.list_commands(ctx):
+            command = super().get_command(ctx, name)
+            if command is not None and not command.hidden and name.startswith(cmd_name):
+                matches.append(name)
 
         if not matches:
             return None
@@ -31,23 +41,41 @@ class AliasedCommandGroup(Group):
 
         ctx.fail(f"Too many matches: {', '.join(sorted(matches))}")
 
-    def command(self, *args, **kwargs):
+    @overload
+    def command(self, __func: CommandCallback) -> Command:
+        ...
+
+    @overload
+    def command(self, *args: Any, **kwargs: Any) -> CommandDecorator:
+        ...
+
+    def command(self, *args: Any, **kwargs: Any) -> Union[CommandDecorator, Command]:
         aliases = kwargs.pop('aliases', [])
 
         if not aliases:
             return super().command(*args, **kwargs)
 
-        def _decorator(f):
+        func = None
+        if args and callable(args[0]):
+            assert len(args) == 1, "Use 'command(**kwargs)(callable)' to provide arguments."
+            func = args[0]
+            args = ()
+
+        def _decorator(f: CommandCallback) -> Command:
+            cmd_kwargs = dict(kwargs)
+            cmd_name = cmd_kwargs.pop("name", None)
+
             if args:
-                cmd_name = args[0]
-                cmd_args = args[1:]
+                if cmd_name is None:
+                    cmd_name = args[0]
+                    cmd_args = args[1:]
+                else:
+                    cmd_args = args
             else:
-                cmd_name = kwargs.get("name", f.__name__.lower().replace("_", "-"))
+                cmd_name = cmd_name or f.__name__.lower().replace("_", "-")
                 cmd_args = ()
 
             alias_help = f"Alias for '{cmd_name}'"
-            cmd_kwargs = dict(kwargs)
-            cmd_kwargs.pop("name", None)
 
             # Add the main command
             cmd = super(AliasedCommandGroup, self).command(*cmd_args, name=cmd_name, **cmd_kwargs)(f)
@@ -61,5 +89,8 @@ class AliasedCommandGroup(Group):
                 alias_cmd.params = cmd.params
 
             return cmd
+
+        if func is not None:
+            return _decorator(func)
 
         return _decorator
