@@ -29,9 +29,8 @@ def _profile_permission_error(exception: PermissionError) -> ClickException:
     path = exception.filename or "the shell profile"
     return ClickException(
         f"Unable to update {path}. "
-        "Please close any editor or terminal using that profile, or update the profile manually. "
-        "If Lean autocomplete is loaded in this PowerShell session, run `lean autocomplete off` again "
-        "after reloading the updated script."
+        "The current PowerShell session is still disabled if Lean autocomplete was loaded there. "
+        "To remove it permanently, close any editor or terminal using that profile, or remove the Lean autocomplete block manually."
     )
 
 

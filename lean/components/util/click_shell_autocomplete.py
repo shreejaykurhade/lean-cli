@@ -69,6 +69,12 @@ function lean-autocomplete-off {
     try {
         Set-PSReadLineOption -PredictionSource None -ErrorAction SilentlyContinue
     } catch {}
+
+    Write-Output "Disabled Lean autocomplete for this PowerShell session."
+    Remove-Item Function:\lean -ErrorAction SilentlyContinue
+    Remove-Item Function:\lean-autocomplete-on -ErrorAction SilentlyContinue
+    Remove-Item Function:\lean-autocomplete-off -ErrorAction SilentlyContinue
+    Remove-Item Function:\__LeanCliExecutable -ErrorAction SilentlyContinue
 }
 
 function lean-autocomplete-on {
@@ -80,8 +86,8 @@ function lean {
     $lean = __LeanCliExecutable
 
     if ($args.Count -ge 2 -and ($args[0] -eq "completion" -or $args[0] -eq "autocomplete") -and $args[1] -eq "off") {
-        & $lean @args
         lean-autocomplete-off
+        & $lean @args
         return
     }
 
@@ -166,6 +172,11 @@ Register-ArgumentCompleter -Native -CommandName {prog_name} -ScriptBlock {{ @() 
 try {{
     Set-PSReadLineOption -PredictionSource None -ErrorAction SilentlyContinue
 }} catch {{}}
+
+Remove-Item Function:\\lean -ErrorAction SilentlyContinue
+Remove-Item Function:\\lean-autocomplete-on -ErrorAction SilentlyContinue
+Remove-Item Function:\\lean-autocomplete-off -ErrorAction SilentlyContinue
+Remove-Item Function:\\__LeanCliExecutable -ErrorAction SilentlyContinue
 
 function lean-autocomplete-on {{
     & {prog_name} autocomplete --shell powershell | Out-String | Invoke-Expression

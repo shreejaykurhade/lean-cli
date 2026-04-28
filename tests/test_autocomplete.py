@@ -34,6 +34,7 @@ def test_hidden_completion_alias_prints_powershell_script() -> None:
     assert "function lean-autocomplete-on" in result.output
     assert "function lean {" in result.output
     assert '__LeanCliExecutable' in result.output
+    assert result.output.index("lean-autocomplete-off") < result.output.index("& $lean @args")
 
 
 def test_autocomplete_command_prints_powershell_script() -> None:
@@ -189,6 +190,7 @@ def test_autocomplete_off_current_session_prints_powershell_cleanup_script() -> 
     assert result.exit_code == 0
     assert "Register-ArgumentCompleter -Native -CommandName lean -ScriptBlock { @() }" in result.output
     assert "Set-PSReadLineOption -PredictionSource None" in result.output
+    assert "Remove-Item Function:\\lean" in result.output
     assert "function lean-autocomplete-on" in result.output
     assert "autocomplete --shell powershell" in result.output
 
@@ -200,4 +202,4 @@ def test_autocomplete_off_shows_clear_error_when_profile_cannot_be_updated() -> 
 
     assert result.exit_code != 0
     assert "Unable to update profile.ps1" in result.output
-    assert "lean autocomplete off" in result.output
+    assert "The current PowerShell session is still disabled" in result.output
