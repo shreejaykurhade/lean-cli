@@ -13,7 +13,7 @@
 
 from typing import Optional
 
-from click import Choice, Context, echo, group, option, pass_context
+from click import Choice, ClickException, Context, echo, group, option, pass_context
 
 from lean.components.util.click_aliased_command_group import AliasedCommandGroup
 
@@ -23,6 +23,15 @@ SHELL_OPTION = option("--shell",
                       type=Choice(["powershell", "bash", "zsh", "fish"], case_sensitive=False),
                       default=None,
                       help="Target shell. Auto-detected if not specified.")
+
+
+def _profile_permission_error(exception: PermissionError) -> ClickException:
+    path = exception.filename or "the shell profile"
+    return ClickException(
+        f"Unable to update {path}. "
+        "Please close any editor or terminal using that profile, or update the profile manually. "
+        "For the current session, run `lean completion --shell powershell | Out-String | Invoke-Expression`."
+    )
 
 
 @group(cls=AliasedCommandGroup, invoke_without_command=True)
@@ -59,7 +68,11 @@ def show(shell: Optional[str]) -> None:
 @SHELL_OPTION
 def on(shell: Optional[str]) -> None:
     from lean.components.util.click_shell_completion import install_completion
-    profile_path = install_completion(shell)
+    try:
+        profile_path = install_completion(shell)
+    except PermissionError as exception:
+        raise _profile_permission_error(exception)
+
     echo(f"Enabled shell completion in {profile_path}")
     echo("Open a new terminal session for the change to take effect.")
 
@@ -68,7 +81,10 @@ def on(shell: Optional[str]) -> None:
 @SHELL_OPTION
 def off(shell: Optional[str]) -> None:
     from lean.components.util.click_shell_completion import uninstall_completion
-    profile_path, removed = uninstall_completion(shell)
+    try:
+        profile_path, removed = uninstall_completion(shell)
+    except PermissionError as exception:
+        raise _profile_permission_error(exception)
 
     if removed:
         echo(f"Disabled shell completion in {profile_path}")

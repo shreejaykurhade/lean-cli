@@ -99,3 +99,13 @@ def test_completion_off_removes_powershell_profile_block() -> None:
         assert "# >>> lean completion >>>" not in content
         assert "# before" in content
         assert "# after" in content
+
+
+def test_completion_off_shows_clear_error_when_profile_cannot_be_updated() -> None:
+    with patch("lean.components.util.click_shell_completion.uninstall_completion",
+               side_effect=PermissionError(13, "Permission denied", "profile.ps1")):
+        result = CliRunner().invoke(lean, ["completion", "off", "--shell", "powershell"])
+
+    assert result.exit_code != 0
+    assert "Unable to update profile.ps1" in result.output
+    assert "lean completion --shell powershell | Out-String | Invoke-Expression" in result.output
