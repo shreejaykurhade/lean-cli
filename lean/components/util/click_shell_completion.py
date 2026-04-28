@@ -116,6 +116,21 @@ def get_completion_script(shell: Optional[str], prog_name: str = "lean") -> str:
     return completion_class(None, {}, prog_name, complete_var).source()
 
 
+def get_completion_cleanup_script(shell: Optional[str], prog_name: str = "lean") -> str:
+    shell_name = (shell or detect_shell()).lower()
+
+    if shell_name == "powershell":
+        return f"""
+Register-ArgumentCompleter -Native -CommandName {prog_name} -ScriptBlock {{ @() }}
+
+try {{
+    Set-PSReadLineOption -PredictionSource None -ErrorAction SilentlyContinue
+}} catch {{}}
+""".strip()
+
+    return ""
+
+
 def get_profile_path(shell: Optional[str]) -> Path:
     shell_name = (shell or detect_shell()).lower()
 

@@ -30,7 +30,8 @@ def _profile_permission_error(exception: PermissionError) -> ClickException:
     return ClickException(
         f"Unable to update {path}. "
         "Please close any editor or terminal using that profile, or update the profile manually. "
-        "For the current session, run `lean completion --shell powershell | Out-String | Invoke-Expression`."
+        "For the current PowerShell session, run "
+        "`lean completion off --shell powershell --current-session | Out-String | Invoke-Expression`."
     )
 
 
@@ -78,9 +79,15 @@ def on(shell: Optional[str]) -> None:
 
 
 @completion.command(name="off", help="Disable shell completion in your shell profile")
+@option("--current-session", is_flag=True, help="Print a script that disables completion in the current shell session.")
 @SHELL_OPTION
-def off(shell: Optional[str]) -> None:
-    from lean.components.util.click_shell_completion import uninstall_completion
+def off(shell: Optional[str], current_session: bool) -> None:
+    from lean.components.util.click_shell_completion import get_completion_cleanup_script, uninstall_completion
+
+    if current_session:
+        echo(get_completion_cleanup_script(shell))
+        return
+
     try:
         profile_path, removed = uninstall_completion(shell)
     except PermissionError as exception:
@@ -89,5 +96,7 @@ def off(shell: Optional[str]) -> None:
     if removed:
         echo(f"Disabled shell completion in {profile_path}")
         echo("Open a new terminal session for the change to take effect.")
+        echo("To disable it in this session, run:")
+        echo("lean completion off --shell powershell --current-session | Out-String | Invoke-Expression")
     else:
         echo(f"Shell completion was not enabled in {profile_path}")

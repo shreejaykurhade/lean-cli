@@ -99,6 +99,15 @@ def test_completion_off_removes_powershell_profile_block() -> None:
         assert "# >>> lean completion >>>" not in content
         assert "# before" in content
         assert "# after" in content
+        assert "lean completion off --shell powershell --current-session" in result.output
+
+
+def test_completion_off_current_session_prints_powershell_cleanup_script() -> None:
+    result = CliRunner().invoke(lean, ["completion", "off", "--shell", "powershell", "--current-session"])
+
+    assert result.exit_code == 0
+    assert "Register-ArgumentCompleter -Native -CommandName lean -ScriptBlock { @() }" in result.output
+    assert "Set-PSReadLineOption -PredictionSource None" in result.output
 
 
 def test_completion_off_shows_clear_error_when_profile_cannot_be_updated() -> None:
@@ -108,4 +117,4 @@ def test_completion_off_shows_clear_error_when_profile_cannot_be_updated() -> No
 
     assert result.exit_code != 0
     assert "Unable to update profile.ps1" in result.output
-    assert "lean completion --shell powershell | Out-String | Invoke-Expression" in result.output
+    assert "lean completion off --shell powershell --current-session | Out-String | Invoke-Expression" in result.output
