@@ -28,7 +28,7 @@ def test_completion_command_prints_powershell_script() -> None:
     assert result.exit_code == 0
     assert "Register-ArgumentCompleter -Native -CommandName lean" in result.output
     assert "_LEAN_COMPLETE" in result.output
-    assert "Set-PSReadLineOption -PredictionSource HistoryAndPlugin" in result.output
+    assert "Set-PSReadLineOption -PredictionSource HistoryAndPlugin" not in result.output
     assert "Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete" in result.output
 
 
