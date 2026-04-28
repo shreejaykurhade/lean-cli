@@ -11,6 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from os import environ
+
+if environ.get("_LEAN_COMPLETE", "").startswith("powershell_"):
+    from lean.components.util.click_shell_completion import register_shell_completion
+    register_shell_completion()
+
 from lean.commands.lean import lean
 from lean.commands.completion import completion
 from lean.commands.backtest import backtest

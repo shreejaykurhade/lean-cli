@@ -49,6 +49,15 @@ Register-ArgumentCompleter -Native -CommandName %(prog_name)s -ScriptBlock {
         Remove-Item Env:COMP_CWORD -ErrorAction SilentlyContinue
     }
 }
+
+try {
+    Set-PSReadLineOption -PredictionSource HistoryAndPlugin -ErrorAction SilentlyContinue
+    Set-PSReadLineOption -PredictionViewStyle InlineView -ErrorAction SilentlyContinue
+} catch {}
+
+try {
+    Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete -ErrorAction SilentlyContinue
+} catch {}
 """
 
 

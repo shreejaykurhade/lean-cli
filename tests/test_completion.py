@@ -12,11 +12,14 @@
 # limitations under the License.
 
 import json
+from tempfile import TemporaryDirectory
 from pathlib import Path
+from unittest.mock import patch
 
 from click.testing import CliRunner
 
 from lean.commands import lean
+from lean.components.util.click_shell_completion import register_shell_completion
 
 
 def test_completion_command_prints_powershell_script() -> None:
@@ -25,9 +28,13 @@ def test_completion_command_prints_powershell_script() -> None:
     assert result.exit_code == 0
     assert "Register-ArgumentCompleter -Native -CommandName lean" in result.output
     assert "_LEAN_COMPLETE" in result.output
+    assert "Set-PSReadLineOption -PredictionSource HistoryAndPlugin" in result.output
+    assert "Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete" in result.output
 
 
 def test_click_shell_completion_prints_powershell_source_script() -> None:
+    register_shell_completion()
+
     result = CliRunner().invoke(lean, [], prog_name="lean", env={
         "_LEAN_COMPLETE": "powershell_source"
     })
@@ -37,6 +44,8 @@ def test_click_shell_completion_prints_powershell_source_script() -> None:
 
 
 def test_click_shell_completion_returns_powershell_completions() -> None:
+    register_shell_completion()
+
     result = CliRunner().invoke(lean, [], prog_name="lean", env={
         "_LEAN_COMPLETE": "powershell_complete",
         "COMP_WORDS": "lean cl",
@@ -60,31 +69,33 @@ def test_click_shell_completion_prints_bash_source_script() -> None:
 
 
 def test_completion_on_writes_powershell_profile() -> None:
-    result = CliRunner().invoke(lean, ["completion", "on", "--shell", "powershell"])
+    with TemporaryDirectory() as directory, patch.object(Path, "home", return_value=Path(directory)):
+        result = CliRunner().invoke(lean, ["completion", "on", "--shell", "powershell"])
 
-    assert result.exit_code == 0
+        assert result.exit_code == 0
 
-    profile_path = Path.home() / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
-    assert profile_path.exists()
+        profile_path = Path(directory) / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
+        assert profile_path.exists()
 
-    content = profile_path.read_text(encoding="utf-8")
-    assert "# >>> lean completion >>>" in content
-    assert "Register-ArgumentCompleter -Native -CommandName lean" in content
+        content = profile_path.read_text(encoding="utf-8")
+        assert "# >>> lean completion >>>" in content
+        assert "Register-ArgumentCompleter -Native -CommandName lean" in content
 
 
 def test_completion_off_removes_powershell_profile_block() -> None:
-    profile_path = Path.home() / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
-    profile_path.parent.mkdir(parents=True, exist_ok=True)
-    profile_path.write_text(
-        "# before\n# >>> lean completion >>>\nlean block\n# <<< lean completion <<<\n# after\n",
-        encoding="utf-8"
-    )
+    with TemporaryDirectory() as directory, patch.object(Path, "home", return_value=Path(directory)):
+        profile_path = Path(directory) / "Documents" / "PowerShell" / "Microsoft.PowerShell_profile.ps1"
+        profile_path.parent.mkdir(parents=True, exist_ok=True)
+        profile_path.write_text(
+            "# before\n# >>> lean completion >>>\nlean block\n# <<< lean completion <<<\n# after\n",
+            encoding="utf-8"
+        )
 
-    result = CliRunner().invoke(lean, ["completion", "off", "--shell", "powershell"])
+        result = CliRunner().invoke(lean, ["completion", "off", "--shell", "powershell"])
 
-    assert result.exit_code == 0
+        assert result.exit_code == 0
 
-    content = profile_path.read_text(encoding="utf-8")
-    assert "# >>> lean completion >>>" not in content
-    assert "# before" in content
-    assert "# after" in content
+        content = profile_path.read_text(encoding="utf-8")
+        assert "# >>> lean completion >>>" not in content
+        assert "# before" in content
+        assert "# after" in content

@@ -16,7 +16,6 @@ from typing import Optional
 from click import Choice, Context, echo, group, option, pass_context
 
 from lean.components.util.click_aliased_command_group import AliasedCommandGroup
-from lean.components.util.click_shell_completion import get_completion_script, install_completion, uninstall_completion
 
 
 SHELL_OPTION = option("--shell",
@@ -45,18 +44,21 @@ def completion(ctx: Context, shell: Optional[str]) -> None:
         lean completion --shell fish | source
     """
     if ctx.invoked_subcommand is None:
+        from lean.components.util.click_shell_completion import get_completion_script
         echo(get_completion_script(shell))
 
 
 @completion.command(name="show", help="Print the native shell completion script for your shell")
 @SHELL_OPTION
 def show(shell: Optional[str]) -> None:
+    from lean.components.util.click_shell_completion import get_completion_script
     echo(get_completion_script(shell))
 
 
 @completion.command(name="on", help="Enable shell completion in your shell profile")
 @SHELL_OPTION
 def on(shell: Optional[str]) -> None:
+    from lean.components.util.click_shell_completion import install_completion
     profile_path = install_completion(shell)
     echo(f"Enabled shell completion in {profile_path}")
     echo("Open a new terminal session for the change to take effect.")
@@ -65,6 +67,7 @@ def on(shell: Optional[str]) -> None:
 @completion.command(name="off", help="Disable shell completion in your shell profile")
 @SHELL_OPTION
 def off(shell: Optional[str]) -> None:
+    from lean.components.util.click_shell_completion import uninstall_completion
     profile_path, removed = uninstall_completion(shell)
 
     if removed:
